@@ -1,77 +1,72 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <errno.h>
 #include "main.h"
-
-#define BUFFER_SIZE 1024
+#include <stdio.h>
 
 /**
- * create_buffer - Allocates 1024 bytes for a buffer.
- * @file: The name of the file buffer is storing chars for.
- *
- * Return: A pointer to the newly-allocated buffer.
+ * error_file - checks if files can be opened.
+ * @file_from: file_from.
+ * @file_to: file_to.
+ * @argv: arguments vector.
+ * Return: no return.
  */
-
-void print_usage_and_exit()
+void error_file(int file_from, int file_to, char *argv[])
 {
-	dprintf(STDERR_FILENO, "Usage: cp file_from file_to\n");
-	exit(97);
+	if (file_from == -1)
+	{
+		dprintf(STDERR_FILENO, "Error: Can't read from file %s\n", argv[1]);
+		exit(98);
+	}
+	if (file_to == -1)
+	{
+		dprintf(STDERR_FILENO, "Error: Can't write to %s\n", argv[2]);
+		exit(99);
+	}
 }
 
-void print_error_and_exit(const char *file, const char *message, int exit_code)
+/**
+ * main - check the code for ALX AFRICA SE students.
+ * @argc: number of arguments.
+ * @argv: arguments vector.
+ * Return: Always 0.
+ */
+int main(int argc, char *argv[])
 {
-	dprintf(STDERR_FILENO, "Error: %s %s\n", message, file);
-	exit(exit_code);
-}
+	int file_from, file_to, err_close;
+	ssize_t nchars, nwr;
+	char buf[1024];
 
-int main(int argc, char **argv)
-{
 	if (argc != 3)
 	{
-		print_usage_and_exit();
+		dprintf(STDERR_FILENO, "%s\n", "Usage: cp file_from file_to");
+		exit(97);
 	}
 
-	char *file_from = argv[1];
-	char *file_to = argv[2];
+	file_from = open(argv[1], O_RDONLY);
+	file_to = open(argv[2], O_CREAT | O_WRONLY | O_TRUNC | O_APPEND, 0664);
+	error_file(file_from, file_to, argv);
 
-	int fd_from = open(file_from, O_RDONLY);
-	if (fd_from == -1)
+	nchars = 1024;
+	while (nchars == 1024)
 	{
-		print_error_and_exit(file_from, "Can't read from file", 98);
+		nchars = read(file_from, buf, 1024);
+		if (nchars == -1)
+			error_file(-1, 0, argv);
+		nwr = write(file_to, buf, nchars);
+		if (nwr == -1)
+			error_file(0, -1, argv);
 	}
 
-	int fd_to = open(file_to, O_WRONLY | O_CREAT | O_TRUNC, 0664);
-	if (fd_to == -1)
+	err_close = close(file_from);
+	if (err_close == -1)
 	{
-		print_error_and_exit(file_to, "Can't write to file", 99);
+		dprintf(STDERR_FILENO, "Error: Can't close fd %d\n", file_from);
+		exit(100);
 	}
 
-	char buffer[BUFFER_SIZE];
-	ssize_t read_bytes;
-	while ((read_bytes = read(fd_from, buffer, BUFFER_SIZE)) > 0)
+	err_close = close(file_to);
+	if (err_close == -1)
 	{
-		if (write(fd_to, buffer, read_bytes) != read_bytes)
-		{
-			print_error_and_exit(file_to, "Can't write to file", 99);
-		}
+		dprintf(STDERR_FILENO, "Error: Can't close fd %d\n", file_from);
+		exit(100);
 	}
-
-	if (read_bytes == -1)
-	{
-		print_error_and_exit(file_from, "Can't read from file", 98);
-	}
-
-	if (close(fd_from) == -1)
-	{
-		print_error_and_exit(file_from, "Can't close fd", 100);
-	}
-
-	if (close(fd_to) == -1)
-	{
-		print_error_and_exit(file_to, "Can't close fd", 100);
-	}
-
 	return (0);
 }
